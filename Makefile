@@ -21,7 +21,7 @@ DEVICE     = attiny2313
 CLOCK      = 8000000
 PROGRAMMER = -c avrispmkII -P usb
 OBJECTS    = main.o
-#FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0x24:m
+FUSES      = -U lfuse:w:0xe4:m -U hfuse:w:0xdf:m -U efuse:w:0xff:m
 
 
 ifeq ($(RELEASE),1)
@@ -53,7 +53,7 @@ run:	all
 .c.s:
 	$(COMPILE) -S $< -o $@
 
-flash:	all
+flash:	clean all
 	$(AVRDUDE) -U flash:w:main.hex:i
 
 fuse:
