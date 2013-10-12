@@ -5,6 +5,8 @@
 #define INPUT_DOT PB0
 #define INPUT_DASH PB1
 #define OUTPUT_KEY PB2
+#define SPEED_UP_KEY PD0
+#define SPEED_DOWN_KEY PD1
 
 #define SIDE_TONE_FREQ 600
 #define SIDE_TONE_PIN_A OC1A
@@ -23,6 +25,10 @@
  */
 
 unsigned char dot_keying, dash_keying;
+unsigned char speed;
+unsigned char unit;
+unsigned int top, compare;
+
 
 /**
  * メインループはビジーループに入ったりするので、割り込みでボタン状態を見る
@@ -38,19 +44,42 @@ ISR(TIMER0_OVF_vect) {
 	}
 }
 
+void delay_ms(unsigned int t) {
+	while (--t) {
+		_delay_ms(1);
+	}
+}
+
+void play_ok() {
+	start_output();
+	delay_ms(unit * 3);
+	stop_output();
+	delay_ms(unit);
+	start_output();
+	delay_ms(unit);
+	stop_output();
+	delay_ms(unit);
+	start_output();
+	delay_ms(unit * 3);
+	stop_output();
+	delay_ms(unit);
+}
+
 int main(void) {
-	unsigned char speed = 1200 / 18;
-	unsigned int top, compare;
+	speed = 18;
+	unit = 1200 / speed;
 
 	/**
 	 * Data Direction Register: 0=input, 1=output
 	 */
 	DDRB = 0b11111100;
+	DDRD = 0b11111100;
 
 	/**
 	 * Pull-up puddle pin
 	 */
 	PORTB = 0b00000011;
+	PORTD = 0b00000011;
 
 	/**
 	 * Timer0 の分周設定
@@ -92,47 +121,42 @@ int main(void) {
 	/**
 	 * message
 	 */
-	start_output();
-	_delay_ms(speed * 3);
-	stop_output();
-	_delay_ms(speed);
-	start_output();
-	_delay_ms(speed * 3);
-	stop_output();
-	_delay_ms(speed);
-	start_output();
-	_delay_ms(speed * 3);
-	stop_output();
-
-	_delay_ms(speed * 3);
-
-	start_output();
-	_delay_ms(speed * 3);
-	stop_output();
-	_delay_ms(speed);
-	start_output();
-	_delay_ms(speed);
-	stop_output();
-	_delay_ms(speed);
-	start_output();
-	_delay_ms(speed * 3);
-	stop_output();
-	_delay_ms(speed);
+	play_ok();
 
 	for (;;) {
+		if (bit_is_clear(PIND, SPEED_UP_KEY) && speed < 40) {
+			delay_ms(10);
+			if (bit_is_clear(PIND, SPEED_UP_KEY)) {
+				speed++;
+				unit = (int)( 1200 / speed);
+			} 
+			play_ok();
+			delay_ms(500);
+		}
+
+		if (bit_is_clear(PIND, SPEED_DOWN_KEY) && 1 < speed) {
+			delay_ms(10);
+			if (bit_is_clear(PIND, SPEED_DOWN_KEY)) {
+				speed--;
+				unit = (int)( 1200 / speed);
+			} 
+			play_ok();
+			delay_ms(500);
+		}
+
 		if (dot_keying) {
 			start_output();
-			_delay_ms(speed);
+			delay_ms(unit);
 			stop_output();
-			_delay_ms(speed);
+			delay_ms(unit);
 			dot_keying = 0;
 		}
 
 		if (dash_keying) {
 			start_output();
-			_delay_ms(speed * 3);
+			delay_ms(unit * 3);
 			stop_output();
-			_delay_ms(speed);
+			delay_ms(unit);
 			dash_keying = 0;
 		}
 	}
