@@ -13,6 +13,10 @@
 #define SIDE_TONE_PIN_A OC1A
 #define SIDE_TONE_PIN_B OC1B
 
+#define clear_bit(v, bit) v &= ~(1 << bit)
+#define set_bit(v, bit)   v |=  (1 << bit)
+
+
 #define is_button_downed(pin, bit, code)  \
 		if (bit_is_clear(pin, bit)) {\
 			delay_ms(10);\
@@ -27,15 +31,6 @@ unsigned char unit;
 unsigned int top, compare;
 unsigned int idle;
 
-static inline void clear_bit(v, bit) {
-	v &= ~(1 << bit);
-}
-
-static inline void set_bit(v, bit) {
-	v |=  (1 << bit);
-}
-
-
 static inline void start_output() {
 	set_bit(PORTB, OUTPUT_KEY); 
 	OCR1A = top;
@@ -45,8 +40,6 @@ static inline void stop_output() {
 	clear_bit(PORTB, OUTPUT_KEY); 
 	OCR1A = 0;
 }
-
-
 
 /**
  * メインループはビジーループに入ったりするので、割り込みでボタン状態を見る
