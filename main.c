@@ -1,6 +1,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/delay.h>
+#include <avr/sleep.h>
 
 #define INPUT_DOT PB0
 #define INPUT_DASH PB1
@@ -28,6 +29,7 @@ unsigned char dot_keying, dash_keying;
 unsigned char speed;
 unsigned char unit;
 unsigned int top, compare;
+unsigned int idle;
 
 
 /**
@@ -35,6 +37,8 @@ unsigned int top, compare;
  *
  */
 ISR(TIMER0_OVF_vect) {
+	idle++;
+
 	if (bit_is_clear(PINB, INPUT_DOT)) {
 		dot_keying = 1;
 	}
@@ -42,6 +46,10 @@ ISR(TIMER0_OVF_vect) {
 	if (bit_is_clear(PINB, INPUT_DASH)) {
 		dash_keying = 1;
 	}
+}
+
+ISR(PCINT_vect) {
+	idle = 0;
 }
 
 void delay_ms(unsigned int t) {
@@ -68,6 +76,7 @@ void play_ok() {
 int main(void) {
 	speed = 18;
 	unit = 1200 / speed;
+	idle = 0;
 
 	/**
 	 * Data Direction Register: 0=input, 1=output
@@ -84,7 +93,7 @@ int main(void) {
 	/**
 	 * Timer0 の分周設定
 	 * 8bit カウンタを 8MHz (F_CPU) を 8分周
-	 * F_CPU(8Mhz) / 8 / 256 ≒ 3.9kHz ≒ 2.56msec
+	 * F_CPU(8Mhz) / 8 / 256 ≒ 3.9kHz ≒ 0.256msec
 	 * TCCR0B 下位3bit
 	 *  000 -> 停止
 	 *  001 -> 分周なし
@@ -114,6 +123,12 @@ int main(void) {
 	ICR1 = compare;
 
 	/**
+	 * キー割り込み
+	 */ 
+	GIMSK = 0b00100000;
+	PCMSK = (1<<PCINT0)|(1<<PCINT1);
+
+	/**
 	 * 割り込み有効化
 	 */
 	sei();
@@ -132,6 +147,7 @@ int main(void) {
 			} 
 			play_ok();
 			delay_ms(500);
+			idle = 0;
 		}
 
 		if (bit_is_clear(PIND, SPEED_DOWN_KEY) && 1 < speed) {
@@ -142,6 +158,7 @@ int main(void) {
 			} 
 			play_ok();
 			delay_ms(500);
+			idle = 0;
 		}
 
 		if (dot_keying) {
@@ -150,6 +167,7 @@ int main(void) {
 			stop_output();
 			delay_ms(unit);
 			dot_keying = 0;
+			idle = 0;
 		}
 
 		if (dash_keying) {
@@ -158,6 +176,16 @@ int main(void) {
 			stop_output();
 			delay_ms(unit);
 			dash_keying = 0;
+			idle = 0;
+		}
+
+		// 10000msec 経ったらパワーダウン
+		if (idle > (int)(10000 / 0.256)) {
+			set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+			sleep_mode();      
+		} else {
+			set_sleep_mode(SLEEP_MODE_IDLE);
+			sleep_mode();      
 		}
 	}
 	return 0;
