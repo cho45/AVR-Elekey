@@ -13,23 +13,39 @@
 #define SIDE_TONE_PIN_A OC1A
 #define SIDE_TONE_PIN_B OC1B
 
-#define clear_bit(v, bit) v &= ~(1 << bit)
-#define set_bit(v, bit)   v |=  (1 << bit)
-
-#define start_output()    set_bit(PORTB, OUTPUT_KEY);   OCR1A = top;
-#define stop_output()     clear_bit(PORTB, OUTPUT_KEY); OCR1A = 0;
-
-/**
- * memo
- * speed は a/d じゃなくてプッシュボタンのほうが簡単そう
- *
- */
+#define is_button_downed(pin, bit, code)  \
+		if (bit_is_clear(pin, bit)) {\
+			delay_ms(10);\
+			if (bit_is_clear(pin, bit)) {\
+				code\
+			}\
+		}
 
 unsigned char dot_keying, dash_keying;
 unsigned char speed;
 unsigned char unit;
 unsigned int top, compare;
 unsigned int idle;
+
+static inline void clear_bit(v, bit) {
+	v &= ~(1 << bit);
+}
+
+static inline void set_bit(v, bit) {
+	v |=  (1 << bit);
+}
+
+
+static inline void start_output() {
+	set_bit(PORTB, OUTPUT_KEY); 
+	OCR1A = top;
+}
+
+static inline void stop_output() {
+	clear_bit(PORTB, OUTPUT_KEY); 
+	OCR1A = 0;
+}
+
 
 
 /**
@@ -48,10 +64,18 @@ ISR(TIMER0_OVF_vect) {
 	}
 }
 
+/**
+ * キーの入力レベルが変わったとき (押したとき・離したとき) に割込みがかかる
+ *
+ */
 ISR(PCINT_vect) {
 	idle = 0;
 }
 
+/**
+ * よくわからないけど _delay_ms() は定数じゃないとダメみたい……
+ * 余計なクロックを消費するので正確ではないけど、正確さを求めてないのでこれでいい
+ */
 void delay_ms(unsigned int t) {
 	while (--t) {
 		_delay_ms(1);
@@ -80,12 +104,16 @@ int main(void) {
 
 	/**
 	 * Data Direction Register: 0=input, 1=output
+	 * 必要なポートだけインプットポートにする。
 	 */
 	DDRB = 0b11111100;
 	DDRD = 0b11111100;
 
 	/**
 	 * Pull-up puddle pin
+	 * 入力ピンをオープンにすると不安定になるので、プルアップ(VCCに繋げる)して
+	 * 電位を安定させる。スイッチは PIN <-> SWITCH <-> GND となり、押したときに
+	 * GND すなわち0になる
 	 */
 	PORTB = 0b00000011;
 	PORTD = 0b00000011;
@@ -113,6 +141,10 @@ int main(void) {
 
 	/**
 	 * Timer1 の設定
+	 * 位相・周波数 PWM
+	 * 0 から top まで登りカウントして、途中 compare を超えると出力がHになり、
+	 * 今度は 0 まで下りカウントして途中 compare を下まわると出力がLになる。
+	 * 今回はただの圧電スピーカー駆動なので duty 比 50% (compare が常に 1/2) にしてる
 	 * */
 	top = F_CPU / 8 / SIDE_TONE_FREQ / 2;
 	compare  = top / 2;
@@ -124,6 +156,7 @@ int main(void) {
 
 	/**
 	 * キー割り込み
+	 * スリープ復帰用
 	 */ 
 	GIMSK = 0b00100000;
 	PCMSK = (1<<PCINT0)|(1<<PCINT1);
@@ -134,32 +167,30 @@ int main(void) {
 	sei();
 
 	/**
-	 * message
+	 * ini message
 	 */
 	play_ok();
 
 	for (;;) {
-		if (bit_is_clear(PIND, SPEED_UP_KEY) && speed < 40) {
-			delay_ms(10);
-			if (bit_is_clear(PIND, SPEED_UP_KEY)) {
+		is_button_downed(PIND, SPEED_UP_KEY, 
+			if (speed < 40) {
 				speed++;
 				unit = (int)( 1200 / speed);
-			} 
-			play_ok();
-			delay_ms(500);
-			idle = 0;
-		}
+				play_ok();
+				delay_ms(500);
+				idle = 0;
+			}
+		);
 
-		if (bit_is_clear(PIND, SPEED_DOWN_KEY) && 1 < speed) {
-			delay_ms(10);
-			if (bit_is_clear(PIND, SPEED_DOWN_KEY)) {
+		is_button_downed(PIND, SPEED_DOWN_KEY, 
+			if (1 < speed ) {
 				speed--;
 				unit = (int)( 1200 / speed);
-			} 
-			play_ok();
-			delay_ms(500);
-			idle = 0;
-		}
+				play_ok();
+				delay_ms(500);
+				idle = 0;
+			}
+		);
 
 		if (dot_keying) {
 			start_output();
