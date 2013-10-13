@@ -65,7 +65,7 @@ static inline void stop_output() {
 static inline void update_button_states() {
 	static char prev;
 	static char curr;
-	static int last;
+	static unsigned int last;
 	unsigned char i;
 
 	if (timer < last) last = timer;
@@ -348,6 +348,7 @@ int main(void) {
 		if (idle > DURATION(10000)) {
 			set_sleep_mode(SLEEP_MODE_PWR_DOWN);
 			sleep_mode();
+			timer = 0;
 		} else {
 			set_sleep_mode(SLEEP_MODE_IDLE);
 			sleep_mode();

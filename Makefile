@@ -21,7 +21,7 @@ DEVICE     = attiny2313
 CLOCK      = 8000000
 PROGRAMMER = -c avrispmkII -P usb
 OBJECTS    = main.o
-FUSES      = -U lfuse:w:0xe4:m -U hfuse:w:0xdf:m -U efuse:w:0xff:m
+FUSES      = -U lfuse:w:0xc4:m -U hfuse:w:0xdf:m -U efuse:w:0xff:m
 
 
 
