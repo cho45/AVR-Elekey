@@ -16,8 +16,9 @@
 #define clear_bit(v, bit) v &= ~(1 << bit)
 #define set_bit(v, bit)   v |=  (1 << bit)
 
-#define TIMER_INTERVAL (1.0 / (F_CPU / 8.0 / 256) * 1000)
-#define DURATION(msec) (int)(msec / TIMER_INTERVAL)
+#define CLOCK_DEVIDE 1.0
+#define TIMER_INTERVAL (1.0 / (F_CPU / CLOCK_DEVIDE / 256) * 1000)
+#define DURATION(msec) (unsigned int)(msec / TIMER_INTERVAL)
 
 #define is_button_downed(pin, bit, code)  \
 		if (bit_is_clear(pin, bit)) {\
@@ -189,9 +190,9 @@ void play_ok() {
 }
 
 void play_beep() {
-	OCR1A = F_CPU / 8 / 800 / 2;
+	OCR1A = F_CPU / CLOCK_DEVIDE / 800 / 2;
 	delay_ms(100);
-	OCR1A = F_CPU / 8 / 1200 / 2;
+	OCR1A = F_CPU / CLOCK_DEVIDE / 1200 / 2;
 	delay_ms(150);
 	OCR1A = 0;
 }
@@ -231,7 +232,7 @@ int main(void) {
 	 *  101 -> 1024分周
 	 */
 	TCCR0A = 0b00000000;
-	TCCR0B = 0b00000010;
+	TCCR0B = 0b00000001;
 
 	/**
 	 * Timer0 のオーバーフロー割り込みを有効化
@@ -246,11 +247,11 @@ int main(void) {
 	 * 今度は 0 まで下りカウントして途中 compare を下まわると出力がLになる。
 	 * 今回はただの圧電スピーカー駆動なので duty 比 50% (compare が常に 1/2) にしてる
 	 * */
-	top = F_CPU / 8 / SIDE_TONE_FREQ / 2;
+	top = F_CPU / CLOCK_DEVIDE / SIDE_TONE_FREQ / 2;
 	compare  = top / 2;
 	// WGM13=1, WGM12=0, WGM11=0, WGM10=1
 	TCCR1A = 0b01000001;
-	TCCR1B = 0b00010010;
+	TCCR1B = 0b00010001;
 	OCR1A = 0;
 	ICR1 = compare;
 
@@ -338,7 +339,8 @@ int main(void) {
 		}
 
 		// 10000msec 経ったらパワーダウン
-		if (idle > DURATION(10000)) {
+		if (idle > DURATION(3000)) {
+			play_beep();
 			set_sleep_mode(SLEEP_MODE_PWR_DOWN);
 			sleep_mode();      
 		} else {
