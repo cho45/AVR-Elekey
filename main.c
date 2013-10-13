@@ -73,6 +73,7 @@ static inline void update_button_states() {
 
 	curr = PIND;
 	for (i = 0; i < 8; i++) {
+		if (DDRD | _BV(i)) continue; // skip output port
 		keydown[i] = keyup[i] = 0;
 
 		if ( (curr ^ prev) & _BV(i)) {
