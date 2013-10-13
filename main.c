@@ -197,12 +197,7 @@ void play_beep() {
 	OCR1A = 0;
 }
 
-int main(void) {
-	unsigned char enable = 1;
-	speed = 21;
-	unit = 1200 / speed;
-	idle = 0;
-
+void setup_io() {
 	/**
 	 * Data Direction Register: 0=input, 1=output
 	 * 必要なポートだけインプットポートにする。
@@ -266,6 +261,17 @@ int main(void) {
 	 * 割り込み有効化
 	 */
 	sei();
+
+}
+
+int main(void) {
+	unsigned char enable = 1;
+
+	setup_io();
+
+	speed = 21;
+	unit = 1200 / speed;
+	idle = 0;
 
 	clear_button_states();
 
@@ -340,7 +346,6 @@ int main(void) {
 
 		// 10000msec 経ったらパワーダウン
 		if (idle > DURATION(10000)) {
-			play_beep();
 			set_sleep_mode(SLEEP_MODE_PWR_DOWN);
 			sleep_mode();
 		} else {
