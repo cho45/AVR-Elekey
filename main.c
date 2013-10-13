@@ -16,7 +16,7 @@
 #define clear_bit(v, bit) v &= ~(1 << bit)
 #define set_bit(v, bit)   v |=  (1 << bit)
 
-#define CLOCK_DEVIDE 1.0
+#define CLOCK_DEVIDE 8.0
 #define TIMER_INTERVAL (1.0 / (F_CPU / CLOCK_DEVIDE / 256) * 1000)
 #define DURATION(msec) (unsigned int)(msec / TIMER_INTERVAL)
 
@@ -232,7 +232,7 @@ int main(void) {
 	 *  101 -> 1024分周
 	 */
 	TCCR0A = 0b00000000;
-	TCCR0B = 0b00000001;
+	TCCR0B = 0b00000010;
 
 	/**
 	 * Timer0 のオーバーフロー割り込みを有効化
@@ -251,7 +251,7 @@ int main(void) {
 	compare  = top / 2;
 	// WGM13=1, WGM12=0, WGM11=0, WGM10=1
 	TCCR1A = 0b01000001;
-	TCCR1B = 0b00010001;
+	TCCR1B = 0b00010010;
 	OCR1A = 0;
 	ICR1 = compare;
 
@@ -339,13 +339,13 @@ int main(void) {
 		}
 
 		// 10000msec 経ったらパワーダウン
-		if (idle > DURATION(3000)) {
+		if (idle > DURATION(10000)) {
 			play_beep();
 			set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-			sleep_mode();      
+			sleep_mode();
 		} else {
 			set_sleep_mode(SLEEP_MODE_IDLE);
-			sleep_mode();      
+			sleep_mode();
 		}
 	}
 	return 0;
