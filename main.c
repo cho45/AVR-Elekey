@@ -37,14 +37,27 @@ unsigned int top, compare;
 unsigned int idle;
 unsigned int timer;
 
+/**
+ * よくわからないけど _delay_ms() は定数じゃないとダメみたい……
+ * 余計なクロックを消費するので正確ではないけど、正確さを求めてないのでこれでいい
+ */
+void delay_ms(unsigned int t) {
+	while (--t) {
+		_delay_ms(1);
+	}
+}
+
+static inline void start_beep() { OCR1A = top; }
+static inline void stop_beep() { OCR1A = 0; }
+
 static inline void start_output() {
 	set_bit(PORTB, OUTPUT_KEY); 
-	OCR1A = top;
+	start_beep();
 }
 
 static inline void stop_output() {
 	clear_bit(PORTB, OUTPUT_KEY); 
-	OCR1A = 0;
+	stop_beep();
 }
 
 static inline void update_button_states() {
@@ -90,6 +103,49 @@ static inline void clear_button_states() {
 }
 
 
+void _play(unsigned char number) {
+	static unsigned long numbers[] = {
+		0b1110111011101110111,
+		0b10111011101110111,
+		0b101011101110111,
+		0b1010101110111,
+		0b10101010111,
+		0b101010101,
+		0b11101010101,
+		0b1110111010101,
+		0b111011101110101,
+		0b11101110111011101,
+	};
+
+	unsigned long n = numbers[number];
+	unsigned char i = 0;
+
+	for (i = 0; i < 32; i++) {
+		if (n >> (31 - i) & 1) {
+			i -= 1;
+			break;
+		}
+	}
+
+	for (; i < 32; i++) {
+		if (n >> (31 - i) & 1) {
+			start_beep();
+			delay_ms(unit);
+		} else {
+			stop_beep();
+			delay_ms(unit);
+		}
+	}
+	stop_beep();
+}
+
+void play(unsigned char num) {
+	_play(num / 10);
+	delay_ms(unit * 2);
+	_play(num % 10);
+}
+
+
 /**
  * メインループはビジーループに入ったりするので、割り込みでボタン状態を見る
  *
@@ -113,16 +169,6 @@ ISR(TIMER0_OVF_vect) {
  */
 ISR(PCINT_vect) {
 	idle = 0;
-}
-
-/**
- * よくわからないけど _delay_ms() は定数じゃないとダメみたい……
- * 余計なクロックを消費するので正確ではないけど、正確さを求めてないのでこれでいい
- */
-void delay_ms(unsigned int t) {
-	while (--t) {
-		_delay_ms(1);
-	}
 }
 
 void play_ok() {
@@ -149,8 +195,8 @@ void play_beep() {
 }
 
 int main(void) {
-	unsigned char enable = 0;
-	speed = 18;
+	unsigned char enable = 1;
+	speed = 21;
 	unit = 1200 / speed;
 	idle = 0;
 
@@ -218,16 +264,12 @@ int main(void) {
 	 */
 	sei();
 
+	clear_button_states();
+
 	/**
 	 * ini message
 	 */
 	play_beep();
-
-	OCR1A = F_CPU / 8 / 800 / 2;
-	delay_ms(100);
-	OCR1A = F_CPU / 8 / 1200 / 2;
-	delay_ms(150);
-	OCR1A = 0;
 
 	for (;;) {
 		update_button_states();
@@ -238,6 +280,13 @@ int main(void) {
 			delay_ms(500);
 			clear_button_states();
 		}
+
+		if (keypressing[SPEED_UP_KEY] > 200 || keypressing[SPEED_DOWN_KEY] > 200) {
+			play(speed);
+			delay_ms(500);
+			clear_button_states();
+		}
+
 
 		if (keyup[SPEED_UP_KEY]) {
 			if (speed < 40) {
