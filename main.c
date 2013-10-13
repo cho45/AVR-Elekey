@@ -16,7 +16,8 @@
 #define clear_bit(v, bit) v &= ~(1 << bit)
 #define set_bit(v, bit)   v |=  (1 << bit)
 
-#define DURATION(msec) (int)(msec / 0.256)
+#define TIMER_INTERVAL (1.0 / (F_CPU / 8.0 / 256) * 1000)
+#define DURATION(msec) (int)(msec / TIMER_INTERVAL)
 
 #define is_button_downed(pin, bit, code)  \
 		if (bit_is_clear(pin, bit)) {\
@@ -279,9 +280,11 @@ int main(void) {
 			enable = !enable;
 			delay_ms(500);
 			clear_button_states();
-		}
-
-		if (keypressing[SPEED_UP_KEY] > 200 || keypressing[SPEED_DOWN_KEY] > 200) {
+		} else
+		if (
+			(keypressing[SPEED_UP_KEY] > 200 && !keypressing[SPEED_DOWN_KEY]) || 
+			(keypressing[SPEED_DOWN_KEY] > 200 && !keypressing[SPEED_UP_KEY])
+		) {
 			play(speed);
 			delay_ms(500);
 			clear_button_states();
@@ -293,7 +296,7 @@ int main(void) {
 				speed++;
 				unit = (int)(1200 / speed);
 				play_beep();
-				delay_ms(500);
+				delay_ms(200);
 			}
 		}
 
@@ -302,7 +305,7 @@ int main(void) {
 				speed--;
 				unit = (int)(1200 / speed);
 				play_beep();
-				delay_ms(500);
+				delay_ms(200);
 			}
 		};
 

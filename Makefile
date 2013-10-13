@@ -24,6 +24,7 @@ OBJECTS    = main.o
 FUSES      = -U lfuse:w:0xe4:m -U hfuse:w:0xdf:m -U efuse:w:0xff:m
 
 
+
 ifeq ($(RELEASE),1)
 COMPILE_OPT = -Os
 else
@@ -38,7 +39,7 @@ all:	main.hex
 
 run:	all
 	~/project/simavr/simavr/run_avr -g -mcu $(DEVICE) -freq $(CLOCK) main.hex &
-	avr-gdb
+	avr-gdb ; killall run_avr
 
 .c.o:
 	$(COMPILE) -c $< -o $@
