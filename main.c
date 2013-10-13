@@ -16,6 +16,7 @@
 #define clear_bit(v, bit) v &= ~(1 << bit)
 #define set_bit(v, bit)   v |=  (1 << bit)
 
+#define DURATION(msec) (int)(msec / 0.256)
 
 #define is_button_downed(pin, bit, code)  \
 		if (bit_is_clear(pin, bit)) {\
@@ -28,8 +29,13 @@
 unsigned char dot_keying, dash_keying;
 unsigned char speed;
 unsigned char unit;
+
+unsigned int keypressing[8];
+unsigned char keydown[8], keyup[8];
+
 unsigned int top, compare;
 unsigned int idle;
+unsigned int timer;
 
 static inline void start_output() {
 	set_bit(PORTB, OUTPUT_KEY); 
@@ -41,11 +47,55 @@ static inline void stop_output() {
 	OCR1A = 0;
 }
 
+static inline void update_button_states() {
+	static char prev;
+	static char curr;
+	static int last;
+	unsigned char i;
+
+	if (timer < last) last = timer;
+	if (timer < (last + DURATION(10))) return;
+	last = timer;
+
+	curr = PIND;
+	for (i = 0; i < 8; i++) {
+		keydown[i] = keyup[i] = 0;
+
+		if ( (curr ^ prev) & _BV(i)) {
+			if (!keypressing[i] && bit_is_clear(curr, i)) {
+				keydown[i] = 1;
+			} else
+			if (keypressing[i] > 0 && bit_is_set(curr, i)) {
+				keyup[i] = 1;
+			}
+		}
+
+		if (bit_is_clear(curr, i)) {
+			keypressing[i]++;
+			idle = 0;
+		} else {
+			keypressing[i] = 0;
+		}
+	}
+	prev = curr;
+}
+
+static inline void clear_button_states() {
+	unsigned char i;
+	for (i = 0; i < 8; i++){
+		keypressing[i] = 0;
+		keyup[i] = 0;
+		keydown[i] = 0;
+	}
+}
+
+
 /**
  * メインループはビジーループに入ったりするので、割り込みでボタン状態を見る
  *
  */
 ISR(TIMER0_OVF_vect) {
+	timer++;
 	idle++;
 
 	if (bit_is_clear(PINB, INPUT_DOT)) {
@@ -90,7 +140,16 @@ void play_ok() {
 	delay_ms(unit);
 }
 
+void play_beep() {
+	OCR1A = F_CPU / 8 / 800 / 2;
+	delay_ms(100);
+	OCR1A = F_CPU / 8 / 1200 / 2;
+	delay_ms(150);
+	OCR1A = 0;
+}
+
 int main(void) {
+	unsigned char enable = 0;
 	speed = 18;
 	unit = 1200 / speed;
 	idle = 0;
@@ -162,49 +221,71 @@ int main(void) {
 	/**
 	 * ini message
 	 */
-	play_ok();
+	play_beep();
+
+	OCR1A = F_CPU / 8 / 800 / 2;
+	delay_ms(100);
+	OCR1A = F_CPU / 8 / 1200 / 2;
+	delay_ms(150);
+	OCR1A = 0;
 
 	for (;;) {
-		is_button_downed(PIND, SPEED_UP_KEY, 
-			if (speed < 40) {
-				speed++;
-				unit = (int)( 1200 / speed);
-				play_ok();
-				delay_ms(500);
-				idle = 0;
-			}
-		);
+		update_button_states();
 
-		is_button_downed(PIND, SPEED_DOWN_KEY, 
-			if (1 < speed ) {
-				speed--;
-				unit = (int)( 1200 / speed);
-				play_ok();
-				delay_ms(500);
-				idle = 0;
-			}
-		);
-
-		if (dot_keying) {
-			start_output();
-			delay_ms(unit);
-			stop_output();
-			delay_ms(unit);
-			dot_keying = 0;
-			idle = 0;
+		if (keypressing[SPEED_UP_KEY] > 200 && keypressing[SPEED_DOWN_KEY] > 200) {
+			play_ok();
+			enable = !enable;
+			delay_ms(500);
+			clear_button_states();
 		}
 
-		if (dash_keying) {
-			start_output();
-			delay_ms(unit * 3);
+		if (keyup[SPEED_UP_KEY]) {
+			if (speed < 40) {
+				speed++;
+				unit = (int)(1200 / speed);
+				play_beep();
+				delay_ms(500);
+			}
+		}
+
+		if (keyup[SPEED_DOWN_KEY]) {
+			if (1 < speed) {
+				speed--;
+				unit = (int)(1200 / speed);
+				play_beep();
+				delay_ms(500);
+			}
+		};
+
+		if (enable) {
+			if (dot_keying) {
+				start_output();
+				delay_ms(unit);
+				stop_output();
+				delay_ms(unit);
+				dot_keying = 0;
+				idle = 0;
+			}
+
+			if (dash_keying) {
+				start_output();
+				delay_ms(unit * 3);
+				stop_output();
+				delay_ms(unit);
+				dash_keying = 0;
+				idle = 0;
+			}
+		} else {
+			while (bit_is_clear(PINB, INPUT_DOT) || bit_is_clear(PINB, INPUT_DASH)) {
+				start_output();
+				_delay_ms(10);
+			}
 			stop_output();
-			delay_ms(unit);
-			dash_keying = 0;
-			idle = 0;
+			dot_keying = dash_keying = 0;
 		}
 
 		// 10000msec 経ったらパワーダウン
-		if (idle > (int)(10000 / 0.256)) {
+		if (idle > DURATION(10000)) {
 			set_sleep_mode(SLEEP_MODE_PWR_DOWN);
 			sleep_mode();      
 		} else {
