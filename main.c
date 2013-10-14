@@ -6,6 +6,7 @@
 #define INPUT_DOT PB0
 #define INPUT_DASH PB1
 #define OUTPUT_KEY PB2
+#define SIDE_TONE_SWITCH PB4
 #define SPEED_UP_KEY PD0
 #define SPEED_DOWN_KEY PD1
 
@@ -16,7 +17,7 @@
 #define clear_bit(v, bit) v &= ~(1 << bit)
 #define set_bit(v, bit)   v |=  (1 << bit)
 
-#define CLOCK_DEVIDE 8.0
+#define CLOCK_DEVIDE 1.0
 #define TIMER_INTERVAL (1.0 / (F_CPU / CLOCK_DEVIDE / 256) * 1000)
 #define DURATION(msec) (unsigned int)(msec / TIMER_INTERVAL)
 
@@ -54,12 +55,16 @@ static inline void stop_beep() { OCR1A = 0; }
 
 static inline void start_output() {
 	set_bit(PORTB, OUTPUT_KEY); 
-	start_beep();
+	if (bit_is_clear(PINB, SIDE_TONE_SWITCH)) {
+		start_beep();
+	}
 }
 
 static inline void stop_output() {
 	clear_bit(PORTB, OUTPUT_KEY); 
-	stop_beep();
+	if (bit_is_clear(PINB, SIDE_TONE_SWITCH)) {
+		stop_beep();
+	}
 }
 
 static inline void update_button_states() {
@@ -176,17 +181,17 @@ ISR(PCINT_vect) {
 }
 
 void play_ok() {
-	start_output();
+	start_beep();
 	delay_ms(unit * 3);
-	stop_output();
+	stop_beep();
 	delay_ms(unit);
-	start_output();
+	start_beep();
 	delay_ms(unit);
-	stop_output();
+	stop_beep();
 	delay_ms(unit);
-	start_output();
+	start_beep();
 	delay_ms(unit * 3);
-	stop_output();
+	stop_beep();
 	delay_ms(unit);
 }
 
@@ -203,8 +208,8 @@ void setup_io() {
 	 * Data Direction Register: 0=input, 1=output
 	 * 必要なポートだけインプットポートにする。
 	 */
-	DDRB = 0b11111100;
-	DDRD = 0b11111100;
+	DDRB  = 0b11101100;
+	DDRD  = 0b11111100;
 
 	/**
 	 * Pull-up puddle pin
@@ -212,7 +217,7 @@ void setup_io() {
 	 * 電位を安定させる。スイッチは PIN <-> SWITCH <-> GND となり、押したときに
 	 * GND すなわち0になる
 	 */
-	PORTB = 0b00000011;
+	PORTB = 0b00010011;
 	PORTD = 0b00000011;
 
 	/**
@@ -228,7 +233,7 @@ void setup_io() {
 	 *  101 -> 1024分周
 	 */
 	TCCR0A = 0b00000000;
-	TCCR0B = 0b00000010;
+	TCCR0B = 0b00000001;
 
 	/**
 	 * Timer0 のオーバーフロー割り込みを有効化
@@ -247,7 +252,7 @@ void setup_io() {
 	compare  = top / 2;
 	// WGM13=1, WGM12=0, WGM11=0, WGM10=1
 	TCCR1A = 0b01000001;
-	TCCR1B = 0b00010010;
+	TCCR1B = 0b00010001;
 	OCR1A = 0;
 	ICR1 = compare;
 
