@@ -73,8 +73,9 @@ static inline void update_button_states() {
 	last = timer;
 
 	curr = PIND;
-	for (i = 0; i < 8; i++) {
-		if (!(~DDRD & _BV(i))) continue; // skip output port
+	// DDRD は 7bit しかない (上位1bit不定)
+	for (i = 0; i < 7; i++) {
+		if (bit_is_set(DDRD, (i))) continue; // skip output port
 		keydown[i] = keyup[i] = 0;
 
 		if ( (curr ^ prev) & _BV(i)) {
