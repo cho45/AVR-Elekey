@@ -18,10 +18,13 @@
 # FUSES ........ Parameters for avrdude to flash the fuses appropriately.
 
 DEVICE     = attiny2313
-CLOCK      = 1000000
+CLOCK      = 8000000
 PROGRAMMER = -c avrispmkII -P usb
 OBJECTS    = main.o
-FUSES      = -U lfuse:w:0x54:m -U hfuse:w:0xdf:m -U efuse:w:0xff:m
+# 8MHz
+FUSES      = -U lfuse:w:0xd4:m -U hfuse:w:0xdf:m -U efuse:w:0xff:m
+# 1MHz
+# FUSES      = -U lfuse:w:0x54:m -U hfuse:w:0xdf:m -U efuse:w:0xff:m
 
 
 
