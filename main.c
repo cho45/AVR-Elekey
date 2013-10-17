@@ -248,7 +248,7 @@ void setup_io() {
 	 * 今度は 0 まで下りカウントして途中 compare を下まわると出力がLになる。
 	 * 今回はただの圧電スピーカー駆動なので duty 比 50% (compare が常に 1/2) にしてる
 	 * */
-	top = F_CPU / CLOCK_DEVIDE / SIDE_TONE_FREQ / 4;
+	top = F_CPU / CLOCK_DEVIDE / SIDE_TONE_FREQ / 2;
 	compare  = top / 2;
 	// WGM13=1, WGM12=0, WGM11=0, WGM10=1
 	TCCR1A = 0b01000001;
