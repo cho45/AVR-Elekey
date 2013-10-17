@@ -19,16 +19,18 @@
 
 #define CLOCK_DEVIDE 1.0
 #define TIMER_INTERVAL (1.0 / (F_CPU / CLOCK_DEVIDE / 256) * 1000)
-#define INTERVAL_UNIT (unsigned int)(1 / TIMER_INTERVAL + 0.5)
-#define DURATION(msec) (unsigned int)(msec * INTERVAL_UNIT)
+#define INTERVAL_UNIT_IN_MS (unsigned int)(1.0 / TIMER_INTERVAL + 0.5)
+#define DURATION(msec) (unsigned int)(msec * INTERVAL_UNIT_IN_MS)
 
-#define is_button_downed(pin, bit, code)  \
-		if (bit_is_clear(pin, bit)) {\
-			delay_ms(10);\
-			if (bit_is_clear(pin, bit)) {\
-				code\
-			}\
-		}
+// 変なノイズがでるので音出さないときは TCCR1A も変える…
+#define SET_TONE(freq) \
+	if (freq) {\
+		TCCR1A = 0b01000001;\
+		OCR1A = F_CPU / CLOCK_DEVIDE / freq / 2;\
+		ICR1 = OCR1A / 2;\
+	} else {\
+		TCCR1A = 0b00000001;\
+	};
 
 unsigned char dot_keying, dash_keying;
 unsigned char speed;
@@ -37,24 +39,15 @@ unsigned char unit;
 unsigned int keypressing[8];
 unsigned char keydown[8], keyup[8];
 
-unsigned int top, compare;
 unsigned int idle;
 unsigned int timer;
 
-/**
- * よくわからないけど _delay_ms() は定数じゃないとダメみたい……
- * 余計なクロックを消費するので正確ではないけど、正確さを求めてないのでこれでいい
- */
+// Max = 65535 / INTERVAL_UNIT = 16383msec
 void delay_ms(unsigned int t) {
-//	while (--t) {
-//		_delay_ms(1);
-//	}
 	unsigned int end = timer + DURATION(t);
-	if (end < timer) {
-		while (timer > 0) {
-			set_sleep_mode(SLEEP_MODE_IDLE);
-			sleep_mode();
-		}
+	while (end < timer) { // end is overflowed?
+		set_sleep_mode(SLEEP_MODE_IDLE);
+		sleep_mode();
 	}
 	while (timer <= end) {
 		set_sleep_mode(SLEEP_MODE_IDLE);
@@ -62,8 +55,8 @@ void delay_ms(unsigned int t) {
 	}
 }
 
-static inline void start_beep() { OCR1A = top; }
-static inline void stop_beep() { OCR1A = 0; }
+static inline void start_beep() { SET_TONE(SIDE_TONE_FREQ); }
+static inline void stop_beep() { SET_TONE(0); }
 
 static inline void start_output() {
 	set_bit(PORTB, OUTPUT_KEY); 
@@ -208,11 +201,11 @@ void play_ok() {
 }
 
 void play_beep() {
-	OCR1A = F_CPU / CLOCK_DEVIDE / 800 / 2;
+	SET_TONE(800);
 	delay_ms(100);
-	OCR1A = F_CPU / CLOCK_DEVIDE / 1200 / 2;
+	SET_TONE(1200);
 	delay_ms(150);
-	OCR1A = 0;
+	SET_TONE(0);
 }
 
 void setup_io() {
@@ -220,6 +213,7 @@ void setup_io() {
 	 * Data Direction Register: 0=input, 1=output
 	 * 必要なポートだけインプットポートにする。
 	 */
+	DDRA  = 0b11111111;
 	DDRB  = 0b11101100;
 	DDRD  = 0b11111100;
 
@@ -260,13 +254,9 @@ void setup_io() {
 	 * 今度は 0 まで下りカウントして途中 compare を下まわると出力がLになる。
 	 * 今回はただの圧電スピーカー駆動なので duty 比 50% (compare が常に 1/2) にしてる
 	 * */
-	top = F_CPU / CLOCK_DEVIDE / SIDE_TONE_FREQ / 2;
-	compare  = top / 2;
 	// WGM13=1, WGM12=0, WGM11=0, WGM10=1
 	TCCR1A = 0b01000001;
 	TCCR1B = 0b00010001;
-	OCR1A = 0;
-	ICR1 = compare;
 
 	/**
 	 * キー割り込み
@@ -364,8 +354,10 @@ int main(void) {
 
 		// 10000msec 経ったらパワーダウン
 		if (idle > DURATION(10000)) {
+			clear_bit(PORTB, SIDE_TONE_SWITCH);
 			set_sleep_mode(SLEEP_MODE_PWR_DOWN);
 			sleep_mode();
+			set_bit(PORTB, SIDE_TONE_SWITCH);
 			timer = 0;
 		} else {
 			set_sleep_mode(SLEEP_MODE_IDLE);
