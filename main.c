@@ -17,7 +17,7 @@
 #define clear_bit(v, bit) v &= ~(1 << bit)
 #define set_bit(v, bit)   v |=  (1 << bit)
 
-#define CLOCK_DEVIDE 8.0
+#define CLOCK_DEVIDE 1.0
 #define TIMER_INTERVAL (1.0 / (F_CPU / CLOCK_DEVIDE / 256) * 1000)
 #define INTERVAL_UNIT (unsigned int)(1 / TIMER_INTERVAL + 0.5)
 #define DURATION(msec) (unsigned int)(msec * INTERVAL_UNIT)
@@ -245,7 +245,7 @@ void setup_io() {
 	 *  101 -> 1024分周
 	 */
 	TCCR0A = 0b00000000;
-	TCCR0B = 0b00000010;
+	TCCR0B = 0b00000001;
 
 	/**
 	 * Timer0 のオーバーフロー割り込みを有効化
@@ -264,7 +264,7 @@ void setup_io() {
 	compare  = top / 2;
 	// WGM13=1, WGM12=0, WGM11=0, WGM10=1
 	TCCR1A = 0b01000001;
-	TCCR1B = 0b00010010;
+	TCCR1B = 0b00010001;
 	OCR1A = 0;
 	ICR1 = compare;
 
