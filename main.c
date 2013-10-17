@@ -19,7 +19,8 @@
 
 #define CLOCK_DEVIDE 8.0
 #define TIMER_INTERVAL (1.0 / (F_CPU / CLOCK_DEVIDE / 256) * 1000)
-#define DURATION(msec) (unsigned int)(msec / TIMER_INTERVAL)
+#define INTERVAL_UNIT (unsigned int)(1 / TIMER_INTERVAL + 0.5)
+#define DURATION(msec) (unsigned int)(msec * INTERVAL_UNIT)
 
 #define is_button_downed(pin, bit, code)  \
 		if (bit_is_clear(pin, bit)) {\
@@ -45,8 +46,19 @@ unsigned int timer;
  * 余計なクロックを消費するので正確ではないけど、正確さを求めてないのでこれでいい
  */
 void delay_ms(unsigned int t) {
-	while (--t) {
-		_delay_ms(1);
+//	while (--t) {
+//		_delay_ms(1);
+//	}
+	unsigned int end = timer + DURATION(t);
+	if (end < timer) {
+		while (timer > 0) {
+			set_sleep_mode(SLEEP_MODE_IDLE);
+			sleep_mode();
+		}
+	}
+	while (timer <= end) {
+		set_sleep_mode(SLEEP_MODE_IDLE);
+		sleep_mode();
 	}
 }
 
