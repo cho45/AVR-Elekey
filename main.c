@@ -359,10 +359,8 @@ int main(void) {
 
 		// 10000msec 経ったらパワーダウン
 		if (idle > DURATION(10000)) {
-			clear_bit(PORTB, SIDE_TONE_SWITCH);
 			set_sleep_mode(SLEEP_MODE_PWR_DOWN);
 			sleep_mode();
-			set_bit(PORTB, SIDE_TONE_SWITCH);
 			timer = 0;
 		} else {
 			set_sleep_mode(SLEEP_MODE_IDLE);
