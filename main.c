@@ -65,14 +65,14 @@ static inline void stop_beep() { SET_TONE(0); }
 
 static inline void start_output() {
 	set_bit(PORTB, OUTPUT_KEY); 
-	if (bit_is_clear(PINB, SIDE_TONE_SWITCH)) {
+	if (bit_is_set(PINB, SIDE_TONE_SWITCH)) {
 		start_beep();
 	}
 }
 
 static inline void stop_output() {
 	clear_bit(PORTB, OUTPUT_KEY); 
-	if (bit_is_clear(PINB, SIDE_TONE_SWITCH)) {
+	if (bit_is_set(PINB, SIDE_TONE_SWITCH)) {
 		stop_beep();
 	}
 }
