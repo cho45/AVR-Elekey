@@ -15,8 +15,8 @@
 #define SIDE_TONE_PIN_B OC1B
 
 #define INHIBIT_RATE 0.3
-#define INHIBIT_TIME_UNIT (unsigned int)(1 / INHIBIT_RATE)
-#define INHIBIT_AFTER_UNIT (unsigned int)(1 / (1 - INHIBIT_RATE))
+#define INHIBIT_TIME(speed) ((unsigned int)(1200 * INHIBIT_RATE) / speed)
+#define INHIBIT_AFTER(speed) ((unsigned int)(1200 * (1 - INHIBIT_RATE)) / speed)
 
 #define clear_bit(v, bit) v &= ~(1 << bit)
 #define set_bit(v, bit)   v |=  (1 << bit)
@@ -339,9 +339,9 @@ int main(void) {
 				start_output();
 				delay_ms(unit);
 				stop_output();
-				delay_ms(1200 / (speed * INHIBIT_TIME_UNIT));
+				delay_ms(INHIBIT_TIME(speed));
 				dot_keying = 0;
-				delay_ms(1200 / (speed * INHIBIT_AFTER_UNIT));
+				delay_ms(INHIBIT_AFTER(speed));
 				idle = 0;
 			}
 
@@ -349,9 +349,9 @@ int main(void) {
 				start_output();
 				delay_ms(unit * 3);
 				stop_output();
-				delay_ms(1200 / (speed * INHIBIT_TIME_UNIT));
+				delay_ms(INHIBIT_TIME(speed));
 				dash_keying = 0;
-				delay_ms(1200 / (speed * INHIBIT_AFTER_UNIT));
+				delay_ms(INHIBIT_AFTER(speed));
 				idle = 0;
 			}
 		} else {
