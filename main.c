@@ -48,16 +48,14 @@ unsigned int timer;
 
 // Max = 65535 / INTERVAL_UNIT = 16383msec
 void delay_ms(unsigned int t) {
-	unsigned int end = timer + DURATION(t);
-	cli();
-	// ここの間に timer がすすんでオーバーフローすると死ぬ
+	unsigned int end;
+	// DURATION(t) が timer でインクリメントされる数よりも小さいと
+	// end が overflow したとき、割込みがかかると余計にループが回ってしまう
+	end = timer + DURATION(t);
 	while (end < timer) { // end is overflowed?
-		sei();
 		set_sleep_mode(SLEEP_MODE_IDLE);
 		sleep_mode();
-		cli();
 	}
-	sei();
 	while (timer <= end) {
 		set_sleep_mode(SLEEP_MODE_IDLE);
 		sleep_mode();
