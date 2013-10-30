@@ -15,65 +15,62 @@
 #define SIDE_TONE_PIN_B OC1B
 
 #define INHIBIT_RATE 0.3
-#define INHIBIT_TIME(speed) ((unsigned int)(1200 * INHIBIT_RATE) / speed)
-#define INHIBIT_AFTER(speed) ((unsigned int)(1200 * (1 - INHIBIT_RATE)) / speed)
+#define INHIBIT_TIME(speed) ((uint16_t)(1200 * INHIBIT_RATE) / speed)
+#define INHIBIT_AFTER(speed) ((uint16_t)(1200 * (1 - INHIBIT_RATE)) / speed)
 
 #define clear_bit(v, bit) v &= ~(1 << bit)
 #define set_bit(v, bit)   v |=  (1 << bit)
 
-#define CLOCK_DEVIDE 1.0
+#define CLOCK_DEVIDE 1
 #define TIMER_INTERVAL (1.0 / (F_CPU / CLOCK_DEVIDE / 256) * 1000)
-#define INTERVAL_UNIT_IN_MS (unsigned int)(1.0 / TIMER_INTERVAL + 0.5)
-#define DURATION(msec) (unsigned int)(msec * INTERVAL_UNIT_IN_MS)
+#define INTERVAL_UNIT_IN_MS (uint16_t)(1.0 / TIMER_INTERVAL + 0.5)
+#define DURATION(msec) (uint16_t)(msec * INTERVAL_UNIT_IN_MS)
 
-// 変なノイズがでるので音出さないときは TCCR1A も変える…
-#define SET_TONE(freq) \
-	if (freq) {\
-		TCCR1A = 0b01000001;\
-		OCR1A = F_CPU / CLOCK_DEVIDE / freq / 2;\
-		ICR1 = OCR1A / 2;\
-	} else {\
-		TCCR1A = 0b00000001;\
-	};
+uint8_t dot_keying, dash_keying;
+uint8_t speed;
+uint8_t unit;
 
-unsigned char dot_keying, dash_keying;
-unsigned char speed;
-unsigned char unit;
+uint16_t keypressing[8];
+uint8_t keydown[8], keyup[8];
 
-unsigned int keypressing[8];
-unsigned char keydown[8], keyup[8];
-
-unsigned int idle;
-unsigned int timer;
+uint16_t idle;
+uint16_t timer;
 
 // Max = 65535 / INTERVAL_UNIT = 16383msec
-void delay_ms(unsigned int t) {
-	unsigned int end;
-	// DURATION(t) が timer でインクリメントされる数よりも小さいと
-	// end が overflow したとき、割込みがかかると余計にループが回ってしまう
+void delay_ms(uint16_t t) {
+	uint16_t end;
+	cli();
+	timer = 0;
 	end = timer + DURATION(t);
-	while (end < timer) { // end is overflowed?
-		set_sleep_mode(SLEEP_MODE_IDLE);
-		sleep_mode();
-	}
+	sei();
 	while (timer <= end) {
 		set_sleep_mode(SLEEP_MODE_IDLE);
 		sleep_mode();
 	}
 }
 
+static inline void SET_TONE(uint16_t freq) {
+	if (freq) {
+		TCCR1A = 0b01000001;
+		OCR1A = (F_CPU / CLOCK_DEVIDE) / freq / 2;
+		ICR1 = OCR1A / 2;
+	} else {
+		TCCR1A = 0b00000001;
+	};
+}
+
 static inline void start_beep() { SET_TONE(SIDE_TONE_FREQ); }
 static inline void stop_beep() { SET_TONE(0); }
 
 static inline void start_output() {
-	set_bit(PORTB, OUTPUT_KEY); 
+	set_bit(PORTB, OUTPUT_KEY);
 	if (bit_is_set(PINB, SIDE_TONE_SWITCH)) {
 		start_beep();
 	}
 }
 
 static inline void stop_output() {
-	clear_bit(PORTB, OUTPUT_KEY); 
+	clear_bit(PORTB, OUTPUT_KEY);
 	if (bit_is_set(PINB, SIDE_TONE_SWITCH)) {
 		stop_beep();
 	}
@@ -82,8 +79,8 @@ static inline void stop_output() {
 static inline void update_button_states() {
 	static char prev;
 	static char curr;
-	static unsigned int last;
-	unsigned char i;
+	static uint16_t last;
+	uint8_t i;
 
 	if (timer < last) last = timer;
 	if (timer < (last + DURATION(10))) return;
@@ -115,7 +112,7 @@ static inline void update_button_states() {
 }
 
 static inline void clear_button_states() {
-	unsigned char i;
+	uint8_t i;
 	for (i = 0; i < 8; i++){
 		keypressing[i] = 0;
 		keyup[i] = 0;
@@ -124,8 +121,8 @@ static inline void clear_button_states() {
 }
 
 
-void _play(unsigned char number) {
-	static unsigned long numbers[] = {
+void _play(uint8_t number) {
+	static uint32_t numbers[] = {
 		0b1110111011101110111,
 		0b10111011101110111,
 		0b101011101110111,
@@ -138,8 +135,8 @@ void _play(unsigned char number) {
 		0b11101110111011101,
 	};
 
-	unsigned long n = numbers[number];
-	unsigned char i = 0;
+	uint32_t n = numbers[number];
+	uint8_t i = 0;
 
 	for (i = 0; i < 32; i++) {
 		if (n >> (31 - i) & 1) {
@@ -160,7 +157,7 @@ void _play(unsigned char number) {
 	stop_beep();
 }
 
-void play(unsigned char num) {
+void play(uint8_t num) {
 	_play(num / 10);
 	delay_ms(unit * 2);
 	_play(num % 10);
@@ -280,7 +277,7 @@ void setup_io() {
 }
 
 int main(void) {
-	unsigned char enable = 1;
+	uint8_t enable = 1;
 
 	setup_io();
 
