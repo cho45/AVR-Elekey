@@ -34,16 +34,17 @@ uint16_t keypressing[8];
 uint8_t keydown[8], keyup[8];
 
 uint16_t idle;
+uint16_t delay;
 uint16_t timer;
 
 // Max = 65535 / INTERVAL_UNIT = 16383msec
 void delay_ms(uint16_t t) {
 	uint16_t end;
 	cli();
-	timer = 0;
-	end = timer + DURATION(t);
+	delay = 0;
+	end = delay + DURATION(t);
 	sei();
-	while (timer <= end) {
+	while (delay <= end) {
 		set_sleep_mode(SLEEP_MODE_IDLE);
 		sleep_mode();
 	}
@@ -169,6 +170,7 @@ void play(uint8_t num) {
  *
  */
 ISR(TIMER0_OVF_vect) {
+	delay++;
 	timer++;
 	idle++;
 
@@ -283,6 +285,8 @@ int main(void) {
 
 	speed = 18;
 	unit = 1200 / speed;
+	timer = 0;
+	delay = 0;
 	idle = 0;
 
 	clear_button_states();
