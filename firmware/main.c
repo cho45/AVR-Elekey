@@ -3,8 +3,8 @@
 #include <util/delay.h>
 #include <avr/sleep.h>
 
-#define INPUT_DOT PB0
-#define INPUT_DASH PB1
+#define INPUT_DASH PB0
+#define INPUT_DOT PB1
 #define OUTPUT_KEY PB2
 #define SIDE_TONE_SWITCH PB4
 #define SPEED_UP_KEY PD0
@@ -229,7 +229,7 @@ void setup_io() {
 	 * 電位を安定させる。スイッチは PIN <-> SWITCH <-> GND となり、押したときに
 	 * GND すなわち0になる
 	 */
-	PORTB = 0b00010011;
+	PORTB = 0b00010000;
 	PORTD = 0b00000011;
 
 	/**
@@ -283,7 +283,7 @@ int main(void) {
 
 	setup_io();
 
-	speed = 18;
+	speed = 20;
 	unit = 1200 / speed;
 	timer = 0;
 	delay = 0;
