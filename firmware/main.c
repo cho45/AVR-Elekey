@@ -234,8 +234,6 @@ void setup_io() {
 
 	/**
 	 * Timer0 の分周設定
-	 * 8bit カウンタを 8MHz (F_CPU) を 8分周
-	 * F_CPU(8Mhz) / 8 / 256 ≒ 3.9kHz ≒ 0.256msec
 	 * TCCR0B 下位3bit
 	 *  000 -> 停止
 	 *  001 -> 分周なし
