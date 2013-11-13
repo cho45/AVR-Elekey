@@ -53,7 +53,7 @@ void delay_ms(uint16_t t) {
 static inline void SET_TONE(uint16_t freq) {
 	if (freq) {
 		TCCR1A = 0b01000001;
-		OCR1A = (F_CPU / CLOCK_DEVIDE) / freq / 2;
+		OCR1A = (F_CPU / CLOCK_DEVIDE) / freq / 4;
 		ICR1 = OCR1A / 2;
 	} else {
 		TCCR1A = 0b00000001;
